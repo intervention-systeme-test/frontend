@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/gradient_background.dart';
 import 'post_edit_screen.dart';
 
 class PostsScreen extends StatefulWidget {
@@ -37,8 +39,12 @@ class _PostsScreenState extends State<PostsScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
+          SnackBar(
+            content: Text('Erreur: $errorMsg'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     }
@@ -51,6 +57,7 @@ class _PostsScreenState extends State<PostsScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: AppColors.cardBackground,
         title: const Text('Créer une publication'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -59,6 +66,7 @@ class _PostsScreenState extends State<PostsScreen> {
               controller: titleController,
               decoration: const InputDecoration(labelText: 'Titre'),
             ),
+            const SizedBox(height: 12),
             TextField(
               controller: contentController,
               decoration: const InputDecoration(labelText: 'Contenu'),
@@ -71,7 +79,7 @@ class _PostsScreenState extends State<PostsScreen> {
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Annuler'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Créer'),
           ),
@@ -124,72 +132,159 @@ class _PostsScreenState extends State<PostsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: const Text('Publications'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+        backgroundColor: Colors.transparent,
+      ),
+      body: GradientBackground(
+        child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Rechercher...',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () => _loadPosts(search: _searchController.text),
-                ),
-              ),
-              onSubmitted: (value) => _loadPosts(search: value),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                _buildTopActions(),
+                const SizedBox(height: 16),
+                Expanded(child: _buildContent()),
+              ],
             ),
           ),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _posts.isEmpty
-              ? const Center(child: Text('Aucune publication'))
-              : ListView.builder(
-                  itemCount: _posts.length,
-                  itemBuilder: (context, index) {
-                    final post = _posts[index];
-                    return Card(
-                      margin: const EdgeInsets.all(8),
-                      child: ListTile(
-                        title: Text(post['title'] ?? ''),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(post['content'] ?? ''),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Par: ${post['user']?['name'] ?? ''}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () => _editPost(post),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              onPressed: () => _deletePost(post['id']),
-                            ),
-                          ],
-                        ),
-                        isThreeLine: true,
-                      ),
-                    );
-                  },
-                ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddPostDialog,
-        child: const Icon(Icons.add),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.5),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: FloatingActionButton(
+          onPressed: _showAddPostDialog,
+          child: const Icon(Icons.add),
+        ),
       ),
+    );
+  }
+
+  Widget _buildTopActions() {
+    return Column(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Rechercher une publication...',
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  onSubmitted: (value) => _loadPosts(search: value),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () => _loadPosts(search: _searchController.text),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ElevatedButton.icon(
+            onPressed: _showAddPostDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Nouvelle publication'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_posts.isEmpty) {
+      return const Center(child: Text('Aucune publication'));
+    }
+    return ListView.builder(
+      itemCount: _posts.length,
+      itemBuilder: (context, index) {
+        final post = _posts[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 24,
+                offset: const Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      post['title'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _editPost(post),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline),
+                        onPressed: () => _deletePost(post['id']),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                post['content'] ?? '',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Par: ${post['user']?['name'] ?? ''}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
